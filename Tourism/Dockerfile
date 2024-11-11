@@ -5,7 +5,7 @@ WORKDIR /tmp/build
 
 COPY ./src/main ./
 RUN find ./java -name '*.java' > sources.txt \
-    && javac --release 11 -cp ./webapp/WEB-INF/lib/javax.servlet-api-4.0.1.jar -d ./webapp/WEB-INF/classes @sources.txt \
+    && javac --release 11 -cp /usr/local/tomcat/lib/servlet-api.jar -d ./webapp/WEB-INF/classes @sources.txt \
     && cd ./webapp \
     && jar -cvf /Tourism.war ./*
 
