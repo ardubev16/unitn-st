@@ -1,0 +1,11 @@
+ARG tomcat_ver=9.0.46
+FROM tomcat:${tomcat_ver} AS build
+
+WORKDIR /tmp/build
+
+COPY ./src/main ./
+RUN find ./java -name '*.java' > sources.txt \
+    && javac --release 11 -cp /usr/local/tomcat/lib/servlet-api.jar -d /classes @sources.txt
+
+FROM scratch AS export-stage
+COPY --from=build /classes /

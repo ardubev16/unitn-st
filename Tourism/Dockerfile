@@ -1,5 +1,5 @@
 ARG tomcat_ver=9.0.46
-FROM tomcat:${tomcat_ver} AS builder
+FROM tomcat:${tomcat_ver} AS build
 
 WORKDIR /tmp/build
 
@@ -10,8 +10,8 @@ RUN find ./java -name '*.java' > sources.txt \
     && jar -cvf /Tourism.war ./*
 
 
-FROM tomcat:${tomcat_ver} AS runner
+FROM tomcat:${tomcat_ver} AS run
 
-COPY --from=builder /Tourism.war /usr/local/tomcat/webapps/Tourism.war
+COPY --from=build /Tourism.war /usr/local/tomcat/webapps/Tourism.war
 
 CMD  ["catalina.sh", "run"]
