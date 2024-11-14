@@ -6,5 +6,5 @@ set -e
     -html -output spotbugs.html \
     -effort:max \
     -progress \
-    -sourcepath ./Tourism/src/main/java \
+    -sourcepath ./Tourism/src/main \
     ./Tourism/classes
