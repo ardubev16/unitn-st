@@ -1,4 +1,5 @@
-FROM tomcat:9.0.46-jdk11 AS build
+ARG TOMCAT_VER=9.0.46-jdk11
+FROM tomcat:${TOMCAT_VER} AS build
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y ant \
@@ -7,25 +8,37 @@ RUN apt-get update \
 WORKDIR /tmp/build
 
 # compile java files
-COPY ./src/main ./
-RUN find ./java -name '*.java' > sources.txt \
-    && javac -cp /usr/local/tomcat/lib/servlet-api.jar -d ./webapp/WEB-INF/classes @sources.txt
+COPY ./src ./
+RUN find ./main/java -name '*.java' > sources.txt \
+    && javac -cp /usr/local/tomcat/lib/servlet-api.jar -d ./main/webapp/WEB-INF/classes @sources.txt
 
 # compile jsp files
 COPY ./ant_build.xml ./
-RUN ant -f ant_build.xml -Dtomcat.home=/usr/local/tomcat -Dwebapp.path=./webapp all
+RUN ant -f ant_build.xml -Dtomcat.home=/usr/local/tomcat -Dwebapp.path=./main/webapp all
 
-# analyse with Spotbugs
-WORKDIR /tmp/analysis
-COPY ./spotbugs-4.8.6 ./
-RUN ./bin/spotbugs -textui \
+
+FROM tomcat:${TOMCAT_VER} AS analyse
+
+WORKDIR /analysis
+
+ARG SPOTBUGS_VER=4.8.6
+ARG FINDSECBUGS_VER=1.12.0
+RUN wget -q https://github.com/spotbugs/spotbugs/releases/download/${SPOTBUGS_VER}/spotbugs-${SPOTBUGS_VER}.zip \
+    && unzip spotbugs-${SPOTBUGS_VER}.zip \
+    && rm spotbugs-${SPOTBUGS_VER}.zip \
+    && wget -q https://search.maven.org/remotecontent?filepath=com/h3xstream/findsecbugs/findsecbugs-plugin/${FINDSECBUGS_VER}/findsecbugs-plugin-${FINDSECBUGS_VER}.jar \
+    -O ./spotbugs-${SPOTBUGS_VER}/plugin/findsecbugs-plugin-${FINDSECBUGS_VER}.jar
+
+COPY --from=build /tmp/build ./
+RUN ./spotbugs-${SPOTBUGS_VER}/bin/spotbugs -textui \
     -html -output /spotbugs.html \
     -effort:max \
     -progress \
-    -sourcepath /tmp/build \
-    -auxclasspath '/usr/local/tomcat/lib:/usr/local/tomcat/bin:/tmp/build/webapp/WEB-INF/lib' \
-    /tmp/build/webapp/WEB-INF/classes
+    -sourcepath ./main \
+    -auxclasspath '/usr/local/tomcat/lib:/usr/local/tomcat/bin:./main/webapp/WEB-INF/lib' \
+    ./main/webapp/WEB-INF/classes
+
 
 FROM scratch AS export-stage
-COPY --from=build /tmp/build/webapp/WEB-INF/classes /classes
-COPY --from=build /spotbugs.html /
+COPY --from=build /tmp/build/main/webapp/WEB-INF/classes /classes
+COPY --from=analyse /spotbugs.html /
